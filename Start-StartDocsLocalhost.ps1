@@ -14,21 +14,20 @@ using namespace System.Collections.Generic
         > . ./Start-StartDocsLocalhost.ps1
 #>
 if(-not (gcm 'bundle' -ea ignore)) {
-    # $Env:PATH += ([IO.Path]::PathSeparator), (gi -ea stop 'C:\Ruby32-x64\bin') -join ''
-    $Env:Path = $Env:Path, 'C:\Ruby32-x64\bin' -join ([IO.Path]::PathSeparator)
+    # $Env:PATH += ([IO.Path]::PathSeparator), (gi -ea stop 'C:\Ruby34-x64\bin') -join ''
+    $Env:Path = $Env:Path, 'C:\Ruby34-x64\bin' -join ([IO.Path]::PathSeparator)
 }
 
 
 $Jekyll_BuildCfg = @{
     LiveReload = $true
     AutoOpen   = $True
-    DocsRoot = gi 'H:/data/2023/my_git/GitLoggerDocs' # base dir for jekyll source
+    DocsRoot = gi $PSScriptRoot #'H:/data/2023/my_git/GitLoggerDocs' # base dir for jekyll source
     # current filepath: H:/data/2023/my_git/GitLoggerDocs/Start-StartDocsLocalhost.ps1
     Watch = $true
     IncrementalBuild = $true
     JekyllEnv = 'development' # 'production'
-    Host = 'http://localhost'
-    # Host = 'localhost'
+    Host = 'localhost'
     Port = '4000'
     StartingUrlPath = 'http://localhost:4000/GitLogger-Metrics'
 }
@@ -55,7 +54,12 @@ Push-Location -stack 'jekyll' $Jekyll_BuildCfg.StaticSiteRoot
 # others: '--incremental'
 if ($Jekyll_BuildCfg.AutoOpen) {
     sleep -Seconds 7
-    Start-Process -FilePath 'http://localhost:4000'
+    try {
+        Start-Process -FilePath 'http://localhost:4000' -ErrorAction Stop
+    }
+    catch {
+        Write-Warning ("Unable to auto-open browser: {0}" -f $_.Exception.Message)
+    }
 }
 
 'Jekyll "bundle" Build Options: <https://jekyllrb.com/docs/configuration/options/>' | write-verbose -verbose
@@ -70,19 +74,19 @@ if ($Jekyll_BuildCfg.AutoOpen) {
          $binArgs.AddRange(@(
             '--livereload' ))
     }
-    $binArgs.AddRange(@(
-        $Jekyll_BuildCfg.Watch ?
-            '--watch' :
-            '--no-watch' ))
+    if ($Jekyll_BuildCfg.Watch) {
+        $binArgs.Add('--watch')
+    }
+    else {
+        $binArgs.Add('--no-watch')
+    }
 
+    $PortArg = if ([string]::IsNullOrWhiteSpace($Jekyll_BuildCfg.Port)) { '4000' } else { [string]$Jekyll_BuildCfg.Port }
+    $HostArg = if ([string]::IsNullOrWhiteSpace($Jekyll_BuildCfg.Host)) { 'localhost' } else { [string]$Jekyll_BuildCfg.Host }
     $binArgs.AddRange(@(
-        '--port',
-            $Jekyll_BuildCfg.Port ?
-            $Jekyll_BuildCfg.Port : '4000'
-        '--host',
-            $Jekyll_BuildCfg.Host ?
-            $Jekyll_BuildCfg.Host : 'http://localhost'
-        ))
+        '--port', $PortArg,
+        '--host', $HostArg
+    ))
 
     if($Jekyll_BuildCfg.IncrementalBuild) {
         $binArgs.AddRange(@(
@@ -90,10 +94,7 @@ if ($Jekyll_BuildCfg.AutoOpen) {
     }
 
 # $binArgs | Join-String -sep ' ' -op 'bundleArgs: ' | Dotils.Write-DimText | Infa
-$binArgs
-    | Join-String -sep ' ' -op 'InvokeNativeCommand: bundle => '
-    | Join-String -op "${fg:gray60}${bg:gray20}"
-    | Write-verbose -verbose
+Write-Verbose ("InvokeNativeCommand: bundle => {0}" -f ($binArgs -join ' ')) -Verbose
 
 & $BinBundle @binArgs
 
