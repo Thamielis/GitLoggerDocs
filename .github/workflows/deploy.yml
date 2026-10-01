@@ -10,7 +10,7 @@ on:
     # * At the first minute (`1`)
     # * Every 21st hour (`1/21`)
     # * Every day of the year (`* * *`)
-    - cron: '1 1/21 * * *'
+    #- cron: '1 1/21 * * *'
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
